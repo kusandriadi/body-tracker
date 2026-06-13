@@ -154,7 +154,8 @@ elif target_cal and avg_in > target_cal + 200:
     suggestions.append(f'Kalori masih di atas target ({target_cal}). Ganti snack tinggi gula dengan buah/protein.')
 
 if profile.get('target_kg'):
-    min_protein = profile['target_kg'] * 1.6
+    # Use the profile's canonical protein target (set at init-profile); fall back to 1.6 g/kg target weight
+    min_protein = profile.get('protein_target_g') or profile['target_kg'] * 1.6
     if avg_protein < min_protein:
         suggestions.append(f'Protein kurang ({avg_protein}g vs ~{min_protein:.0f}g). Tambah telur, ayam, ikan, atau protein shake.')
 

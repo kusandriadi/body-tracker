@@ -130,8 +130,8 @@ if profile:
         suggestions.append(f'Kalori masih di atas target ({target_cal}). Coba ganti snack dengan buah/protein.')
     
     # Protein check
-    target_weight = profile.get('target_kg', 70)
-    min_protein = target_weight * 1.6  # 1.6g per kg for weight loss
+    # Use the profile's canonical protein target (set at init-profile); fall back to 1.6 g/kg target weight
+    min_protein = profile.get('protein_target_g') or profile.get('target_kg', 70) * 1.6
     if avg_protein < min_protein:
         suggestions.append(f'Protein kurang ({avg_protein}g vs target {min_protein:.0f}g). Tambah telur, ayam, atau protein shake.')
 
