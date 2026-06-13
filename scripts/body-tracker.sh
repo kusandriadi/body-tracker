@@ -216,8 +216,18 @@ PYEOF
         FILE=$(get_daily_file "$DATE")
         ensure_daily "$FILE" "$DATE"
         FILE="$FILE" MEAL_JSON="$MEAL_JSON" NOW_ISO="$now_iso" python3 << 'PYEOF'
-import json, os
-meal = json.loads(os.environ['MEAL_JSON'])
+import json, os, sys
+
+def fail(msg):
+    print(msg); sys.exit(1)
+
+try:
+    meal = json.loads(os.environ['MEAL_JSON'])
+except (json.JSONDecodeError, ValueError) as e:
+    fail(f'❌ JSON makanan tidak valid: {e}')
+if not isinstance(meal, dict):
+    fail('❌ JSON makanan harus berupa objek, mis. {"type":"lunch","items":[...]}')
+
 meal['ts'] = os.environ['NOW_ISO']
 meal.setdefault('source', 'manual')
 meal.setdefault('notes', '')
@@ -229,8 +239,11 @@ fat = round(sum(it.get('fat', 0) for it in items), 1)
 meal['total_calories'] = total
 
 f = os.environ['FILE']
-with open(f) as fh:
-    data = json.load(fh)
+try:
+    with open(f) as fh:
+        data = json.load(fh)
+except (json.JSONDecodeError, ValueError) as e:
+    fail(f'❌ File data harian rusak ({os.path.basename(f)}): {e}. Perbaiki/hapus file itu dulu.')
 data['meals'].append(meal)
 tmp = f + '.tmp'
 with open(tmp, 'w') as fh:
@@ -247,15 +260,28 @@ PYEOF
         FILE=$(get_daily_file "$DATE")
         ensure_daily "$FILE" "$DATE"
         FILE="$FILE" ACT_JSON="$ACT_JSON" NOW_ISO="$now_iso" python3 << 'PYEOF'
-import json, os
-act = json.loads(os.environ['ACT_JSON'])
+import json, os, sys
+
+def fail(msg):
+    print(msg); sys.exit(1)
+
+try:
+    act = json.loads(os.environ['ACT_JSON'])
+except (json.JSONDecodeError, ValueError) as e:
+    fail(f'❌ JSON aktivitas tidak valid: {e}')
+if not isinstance(act, dict):
+    fail('❌ JSON aktivitas harus berupa objek, mis. {"type":"running","calories_burned":250}')
+
 act['ts'] = os.environ['NOW_ISO']
 act.setdefault('source', 'manual')
 act.setdefault('notes', '')
 
 f = os.environ['FILE']
-with open(f) as fh:
-    data = json.load(fh)
+try:
+    with open(f) as fh:
+        data = json.load(fh)
+except (json.JSONDecodeError, ValueError) as e:
+    fail(f'❌ File data harian rusak ({os.path.basename(f)}): {e}. Perbaiki/hapus file itu dulu.')
 data['activities'].append(act)
 tmp = f + '.tmp'
 with open(tmp, 'w') as fh:
@@ -316,10 +342,14 @@ PYEOF
             exit 0
         fi
         FILE="$FILE" DATE="$DATE" DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
-import json, os
-with open(os.environ['FILE']) as f:
-    data = json.load(f)
+import json, os, sys
 date = os.environ['DATE']
+try:
+    with open(os.environ['FILE']) as f:
+        data = json.load(f)
+except (json.JSONDecodeError, ValueError) as e:
+    print(f'❌ File data {date} rusak/tidak valid JSON: {e}. Perbaiki/hapus file itu dulu.')
+    sys.exit(1)
 
 s = data.get('daily_summary', {})
 w = data.get('weight', {})
@@ -401,15 +431,19 @@ start = d - datetime.timedelta(days=d.weekday())
 lines = ['📊 Rekap Mingguan', f"{start.strftime('%d %b')} - {(start + datetime.timedelta(days=6)).strftime('%d %b %Y')}", '']
 
 days_data = []
+skipped = 0
 for i in range(7):
     day = start + datetime.timedelta(days=i)
     fpath = os.path.join(data_dir, f'{day.isoformat()}.json')
     if os.path.exists(fpath):
-        with open(fpath) as f:
-            days_data.append(json.load(f))
+        try:
+            with open(fpath) as f:
+                days_data.append(json.load(f))
+        except (json.JSONDecodeError, ValueError):
+            skipped += 1
 
 if not days_data:
-    lines.append('Tidak ada data minggu ini.')
+    lines.append('Tidak ada data minggu ini.' + (f' ({skipped} file rusak dilewati)' if skipped else ''))
     print('\n'.join(lines))
     raise SystemExit(0)
 
@@ -437,6 +471,8 @@ if weights:
         lines.append(f'   {arrow} Perubahan: {diff:+.1f} kg')
 
 lines.append(f'📅 Hari tercatat: {n}/7')
+if skipped:
+    lines.append(f'⚠️ {skipped} file rusak dilewati.')
 print('\n'.join(lines))
 PYEOF
         ;;
@@ -456,14 +492,18 @@ else:
 lines = [f'📊 Rekap Bulanan: {month_key}', '']
 
 days_data = []
+skipped = 0
 for day in range(1, days_in_month + 1):
     fpath = os.path.join(data_dir, f'{month_key}-{day:02d}.json')
     if os.path.exists(fpath):
-        with open(fpath) as f:
-            days_data.append(json.load(f))
+        try:
+            with open(fpath) as f:
+                days_data.append(json.load(f))
+        except (json.JSONDecodeError, ValueError):
+            skipped += 1
 
 if not days_data:
-    lines.append('Tidak ada data bulan ini.')
+    lines.append('Tidak ada data bulan ini.' + (f' ({skipped} file rusak dilewati)' if skipped else ''))
     print('\n'.join(lines))
     raise SystemExit(0)
 
@@ -494,6 +534,8 @@ if weights:
     arrow = '📉' if diff < 0 else '📈' if diff > 0 else '➡️'
     lines.append(f'   {arrow} Perubahan: {diff:+.1f} kg')
 
+if skipped:
+    lines.append(f'⚠️ {skipped} file rusak dilewati.')
 print('\n'.join(lines))
 PYEOF
         ;;

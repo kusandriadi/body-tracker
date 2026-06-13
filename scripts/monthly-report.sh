@@ -40,12 +40,17 @@ if os.path.exists(pfile):
 
 # Collect daily data
 days_data = []
+skipped = 0
 for day in range(1, days_in_month + 1):
     d = datetime.date(year, mon, day)
     fpath = os.path.join(data_dir, f'{d.isoformat()}.json')
     if os.path.exists(fpath):
-        with open(fpath) as f:
-            data = json.load(f)
+        try:
+            with open(fpath) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            skipped += 1
+            continue
         s = data.get('daily_summary', {})
         days_data.append({
             'date': d,
@@ -61,7 +66,7 @@ for day in range(1, days_in_month + 1):
         })
 
 if not days_data:
-    lines.append(f'Tidak ada data untuk {month_name}.')
+    lines.append(f'Tidak ada data untuk {month_name}.' + (f' ({skipped} file rusak dilewati)' if skipped else ''))
     print('\n'.join(lines))
     raise SystemExit
 
@@ -111,6 +116,12 @@ if target_cal:
     diff = avg_in - target_cal
     emoji = '✅' if diff <= 50 else '⚠️'
     lines.append(f'  {emoji} Target harian: {target_cal} kcal (rata-rata {diff:+d} kcal)')
+if tdee:
+    # Estimasi defisit aktual vs TDEE (1 kg lemak ~ 7700 kkal)
+    est_def = round(tdee + avg_out - avg_in)
+    status = 'defisit' if est_def > 0 else 'surplus'
+    emoji2 = '✅' if est_def > 0 else '⚠️'
+    lines.append(f'  {emoji2} Estimasi {status} vs TDEE: {est_def:+d} kkal/hari (≈ {est_def * 7 / 7700:+.2f} kg/minggu)')
 lines.append(f'  🥩 Protein: {avg_protein}g | 🍞 Karbo: {avg_carbs}g | 🧈 Lemak: {avg_fat}g')
 
 # Weight trend + progress vs goal
@@ -172,6 +183,10 @@ if not suggestions:
 
 for i, s in enumerate(suggestions, 1):
     lines.append(f'  {i}. {s}')
+
+if skipped:
+    lines.append('')
+    lines.append(f'⚠️ {skipped} file harian rusak dilewati (tidak ikut dihitung).')
 
 print('\n'.join(lines))
 PYEOF

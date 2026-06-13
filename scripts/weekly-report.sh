@@ -12,7 +12,7 @@ DATE="${1:-$(date -d '7 days ago' '+%Y-%m-%d')}"
 DATA_DIR="$DATA_DIR" DATE="$DATE" python3 << 'PYEOF'
 import json, os, datetime
 
-data_dir = os.environ.get('DATA_DIR', os.path.expanduser('~/.body-tracker'))
+data_dir = os.environ.get('DATA_DIR', '$HOME/.body-tracker')
 date_str = os.environ.get('DATE', datetime.date.today().isoformat())
 
 d = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -31,12 +31,17 @@ if os.path.exists(pfile):
 # Collect daily data
 days_data = []
 daily_summaries = []
+skipped = 0
 for i in range(7):
     day = (start + datetime.timedelta(days=i))
     fpath = os.path.join(data_dir, f'{day.isoformat()}.json')
     if os.path.exists(fpath):
-        with open(fpath) as f:
-            data = json.load(f)
+        try:
+            with open(fpath) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            skipped += 1
+            continue
         days_data.append(data)
         daily_summaries.append({
             'date': day.isoformat(),
@@ -53,7 +58,7 @@ for i in range(7):
         })
 
 if not days_data:
-    lines.append('Tidak ada data minggu ini.')
+    lines.append('Tidak ada data minggu ini.' + (f' ({skipped} file rusak dilewati)' if skipped else ''))
     print('\n'.join(lines))
     exit()
 
@@ -88,6 +93,12 @@ if profile:
         diff = avg_in - target_cal
         emoji = '✅' if diff <= 50 else '⚠️'
         lines.append(f'  {emoji} Target harian: {target_cal} kcal (rata-rata {diff:+d} kcal)')
+    if tdee:
+        # Estimasi defisit aktual vs TDEE (1 kg lemak ~ 7700 kkal)
+        est_def = round(tdee + avg_out - avg_in)
+        status = 'defisit' if est_def > 0 else 'surplus'
+        emoji2 = '✅' if est_def > 0 else '⚠️'
+        lines.append(f'  {emoji2} Estimasi {status} vs TDEE: {est_def:+d} kkal/hari (≈ {est_def * 7 / 7700:+.2f} kg/minggu)')
 
 lines.append(f'  🥩 Protein: {avg_protein}g | 🍞 Karbo: {avg_carbs}g | 🧈 Lemak: {avg_fat}g')
 
@@ -147,6 +158,10 @@ if not suggestions:
 
 for i, s in enumerate(suggestions, 1):
     lines.append(f'  {i}. {s}')
+
+if skipped:
+    lines.append('')
+    lines.append(f'⚠️ {skipped} file harian rusak dilewati (tidak ikut dihitung).')
 
 print('\n'.join(lines))
 PYEOF
