@@ -22,6 +22,7 @@ Track weight, calorie intake (via food photos), and physical activity (via fitne
 
 ## Commands
 
+`/weight` and `/body-tracker` are **aliases** — same command, `/weight` is canonical.
 Triggered via `/weight <subcommand>`. `add-food` / `add-activity` usually come
 with an **image** but may be plain text; the optional `<text>` is the user's
 note/caption.
@@ -30,7 +31,11 @@ note/caption.
 |---------|------------|
 | `/weight add-food [text]` | Log a meal/drink. If an image is attached, analyze it with the `image` tool (`zai/glm-4.6v`) per **Step 2 (food)**, then `body-tracker.sh log-meal '<json>'`. If text-only (e.g. "nasi goreng + es teh"), estimate calories/macros yourself and log. Confirm with detected items + calories **+ protein/karbo/lemak (g)** + time (WIB). |
 | `/weight add-activity [text]` | Log exercise. Image → analyze per **Step 2 (fitness)**; text-only (e.g. "lari 5km 30 menit") → estimate and log via `body-tracker.sh log-activity '<json>'`. Confirm type + calories burned + time. |
-| `/weight undo [makan\|olahraga]` | Batalkan entri terakhir yang salah dicatat: `body-tracker.sh remove-last meal` atau `remove-last activity`. Tambah tanggal opsional (mis. salah catat kemarin): `remove-last meal 2026-06-12`. Konfirmasi apa yang dihapus. |
+| `/weight log-weight <kg>` | Catat berat badan: `body-tracker.sh log-weight <kg>`. Foto timbangan → baca dulu dengan `image` tool. Konfirmasi + waktu WIB. |
+| `/weight undo [makan\|olahraga]` | Batalkan entri **terakhir** yang salah dicatat: `body-tracker.sh remove-last meal` atau `remove-last activity`. Tambah tanggal opsional (mis. salah catat kemarin): `remove-last meal 2026-06-12`. Konfirmasi apa yang dihapus. |
+| `/weight remove <makan\|olahraga> <nomor>` | Hapus entri **tertentu** (bukan cuma yang terakhir). Tampilkan nomornya dulu dengan `body-tracker.sh list meal [tanggal]`, lalu `body-tracker.sh remove meal <nomor> [tanggal]` (nomor 1-based; `-1` = terakhir). Pakai ini kalau yang salah bukan entri paling akhir. |
+| `/weight daily [tanggal]` | Rekap hari ini (atau tanggal tertentu): `body-tracker.sh daily [YYYY-MM-DD]`. Tampilkan kalori, makro, target, dan neraca energi. |
+| `/weight progress` | Progress menuju target + BMI + **streak** log makan: `body-tracker.sh progress`. |
 | `/weight weekly-report` | Run `bash scripts/weekly-report.sh` (no arg = **previous** completed week, Mon–Sun). Show the full report incl. suggestions. Add "minggu ini"? pass today's date: `weekly-report.sh $(date +%F)`. |
 | `/weight monthly-report` | Run `bash scripts/monthly-report.sh` (no arg = **previous** completed month). Show the full report incl. suggestions. "Bulan ini"? pass current month: `monthly-report.sh $(date +%Y-%m)`. |
 | `/weight help` | Explain the commands (see **Help text** below). |
@@ -43,10 +48,16 @@ food/drink → add-food, fitness/smartwatch → add-activity, scale/number → l
 When the user runs `/weight help`, explain in Bahasa Indonesia:
 - `/weight add-food [teks]` — catat makanan/minuman (kirim foto, atau ketik teksnya).
 - `/weight add-activity [teks]` — catat olahraga/aktivitas (foto smartwatch/app atau teks).
-- `/weight undo` — batalkan catatan makan/olahraga terakhir kalau salah deteksi.
+- `/weight log-weight <kg>` — catat berat badan (atau kirim foto timbangan).
+- `/weight undo` — batalkan catatan makan/olahraga **terakhir** kalau salah deteksi.
+- `/weight remove <makan|olahraga> <nomor>` — hapus entri tertentu (lihat nomornya lewat daftar harian dulu).
+- `/weight daily` — rekap hari ini (kalori, makro, target, neraca energi).
+- `/weight progress` — progress menuju target + BMI + streak log makan.
 - `/weight weekly-report` — laporan minggu lalu (Sen–Min) lengkap + saran.
 - `/weight monthly-report` — laporan bulan lalu (tgl 1–akhir) lengkap + saran.
+- `/weight` dan `/body-tracker` itu sama (alias).
 - Bisa juga langsung kirim foto timbangan/makanan/olahraga tanpa command — otomatis terdeteksi.
+- Laporan mingguan & bulanan bisa dikirim otomatis via cron (lihat `scripts/setup-cron.sh`).
 
 ## Model Routing
 
@@ -174,8 +185,18 @@ Prompt: "Read the weight displayed on this scale. Return only the number in kg."
 bash scripts/body-tracker.sh daily [YYYY-MM-DD]       # Today's recap
 bash scripts/body-tracker.sh weekly [YYYY-MM-DD]       # Weekly summary
 bash scripts/body-tracker.sh monthly [YYYY-MM-DD]      # Monthly summary
-bash scripts/body-tracker.sh progress                   # Progress vs target
+bash scripts/body-tracker.sh progress                   # Progress vs target + BMI + streak
 ```
+
+### Correcting mistakes (undo / remove)
+
+```bash
+bash scripts/body-tracker.sh remove-last <meal|activity> [YYYY-MM-DD]   # hapus entri terakhir
+bash scripts/body-tracker.sh list   <meal|activity> [YYYY-MM-DD]        # tampilkan entri + nomor
+bash scripts/body-tracker.sh remove <meal|activity> <nomor> [YYYY-MM-DD] # hapus entri tertentu (1-based; -1 = terakhir)
+```
+Kalau yang salah bukan entri paling akhir, jalankan `list` dulu buat lihat nomornya,
+baru `remove <kind> <nomor>`. Summary harian dihitung ulang otomatis setelah dihapus.
 
 ### Weekly / Monthly Report
 
@@ -185,8 +206,10 @@ bash scripts/monthly-report.sh [YYYY-MM]       # no arg = previous completed mon
 ```
 
 Both generate a full report with calorie trends, macro averages, weight change,
-progress vs target, and personalized suggestions. The weekly report is sent
-automatically every Monday 08:00 WIB via cron (covers the week that just ended).
+progress vs target, and personalized suggestions. They can be delivered
+automatically via cron (`scripts/setup-cron.sh`): the **weekly** report every
+Monday 08:00 and the **monthly** report on the 1st of each month 08:00 (server
+local time), each covering the period that just ended.
 
 > Prefer these over `body-tracker.sh weekly|monthly` — those are quick
 > current-period summaries without suggestions.

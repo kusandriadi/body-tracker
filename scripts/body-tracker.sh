@@ -6,6 +6,8 @@
 #   body-tracker.sh log-meal '<json>' [YYYY-MM-DD]
 #   body-tracker.sh log-activity '<json>' [YYYY-MM-DD]
 #   body-tracker.sh remove-last <meal|activity> [YYYY-MM-DD]
+#   body-tracker.sh remove <meal|activity> <index> [YYYY-MM-DD]   # index: 1-based; -1 = terakhir
+#   body-tracker.sh list <meal|activity> [YYYY-MM-DD]             # tampilkan entri + nomornya
 #   body-tracker.sh daily [YYYY-MM-DD]
 #   body-tracker.sh weekly [YYYY-MM-DD]
 #   body-tracker.sh monthly [YYYY-MM-DD]
@@ -334,6 +336,105 @@ PYEOF
         recalc_summary "$FILE"
         ;;
 
+    remove)
+        KIND="${1:-}"
+        IDX="${2:-}"
+        DATE="${3:-$today}"
+        FILE=$(get_daily_file "$DATE")
+        if [ ! -f "$FILE" ]; then
+            echo "📋 Tidak ada data untuk $DATE"
+            exit 0
+        fi
+        FILE="$FILE" KIND="$KIND" IDX="$IDX" python3 << 'PYEOF'
+import json, os
+f = os.environ['FILE']
+kind = os.environ['KIND'].lower()
+idx_raw = os.environ['IDX']
+if kind in ('meal', 'makan', 'food', 'makanan'):
+    key, label = 'meals', 'makanan'
+elif kind in ('activity', 'aktivitas', 'olahraga', 'exercise'):
+    key, label = 'activities', 'aktivitas'
+else:
+    print('❌ Pakai: remove meal|activity <nomor> [tanggal]')
+    raise SystemExit(0)
+try:
+    idx = int(idx_raw)
+except ValueError:
+    print('❌ Nomor entri harus angka (1 = pertama, -1 = terakhir).')
+    raise SystemExit(0)
+
+with open(f) as fh:
+    data = json.load(fh)
+arr = data.get(key, [])
+if not arr:
+    print(f'📋 Tidak ada {label} untuk dihapus di tanggal ini.')
+    raise SystemExit(0)
+
+# 1-based positif; negatif (Python-style) dibiarkan apa adanya
+pos = idx - 1 if idx > 0 else idx
+try:
+    removed = arr.pop(pos)
+except IndexError:
+    print(f'❌ Nomor {idx} di luar jangkauan (ada {len(arr)} {label}). Cek dengan: list {kind} {data.get("date","")}.')
+    raise SystemExit(0)
+
+tmp = f + '.tmp'
+with open(tmp, 'w') as fh:
+    json.dump(data, fh, indent=2, ensure_ascii=False)
+os.replace(tmp, f)
+
+if key == 'meals':
+    nm = ', '.join(it.get('name', '?') for it in removed.get('items', [])) or '?'
+    t = removed.get('time', '?')
+    print(f"🗑️ Dihapus entri #{idx}: [{t}] {removed.get('type', 'makan')} — {nm} ({removed.get('total_calories', 0)} kkal)")
+else:
+    t = removed.get('time', '?')
+    print(f"🗑️ Dihapus entri #{idx}: [{t}] {removed.get('type', 'aktivitas')} ({removed.get('calories_burned', 0)} kkal)")
+PYEOF
+        recalc_summary "$FILE"
+        ;;
+
+    list)
+        KIND="${1:-}"
+        DATE="${2:-$today}"
+        FILE=$(get_daily_file "$DATE")
+        if [ ! -f "$FILE" ]; then
+            echo "📋 Tidak ada data untuk $DATE"
+            exit 0
+        fi
+        FILE="$FILE" KIND="$KIND" DATE="$DATE" python3 << 'PYEOF'
+import json, os
+f = os.environ['FILE']
+kind = os.environ['KIND'].lower()
+date = os.environ['DATE']
+with open(f) as fh:
+    data = json.load(fh)
+
+def show(key, label, icon):
+    arr = data.get(key, [])
+    if not arr:
+        print(f'{icon} {label}: belum ada entri')
+        return
+    print(f'{icon} {label} ({date}):')
+    for i, e in enumerate(arr, 1):
+        t = e.get('time', '?')
+        if key == 'meals':
+            nm = ', '.join(it.get('name', '?') for it in e.get('items', [])) or '?'
+            print(f"   #{i} [{t}] {e.get('type', 'makan')}: {nm} ({e.get('total_calories', 0)} kkal)")
+        else:
+            extra = f", {e['distance_km']} km" if e.get('distance_km') else ''
+            print(f"   #{i} [{t}] {e.get('type', 'aktivitas')}: {e.get('duration_min', '?')} min, -{e.get('calories_burned', 0)} kkal{extra}")
+
+if kind in ('meal', 'makan', 'food', 'makanan'):
+    show('meals', 'Makanan', '🍽️')
+elif kind in ('activity', 'aktivitas', 'olahraga', 'exercise'):
+    show('activities', 'Aktivitas', '🏃')
+else:
+    show('meals', 'Makanan', '🍽️')
+    show('activities', 'Aktivitas', '🏃')
+PYEOF
+        ;;
+
     daily)
         DATE="${1:-$today}"
         FILE=$(get_daily_file "$DATE")
@@ -541,8 +642,8 @@ PYEOF
         ;;
 
     progress)
-        DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
-import json, os, glob
+        DATA_DIR="$DATA_DIR" TODAY="$today" python3 << 'PYEOF'
+import json, os, glob, datetime
 data_dir = os.environ['DATA_DIR']
 pfile = os.path.join(data_dir, 'profile.json')
 if not os.path.exists(pfile):
@@ -584,6 +685,32 @@ lines.append(f"{'📉 Sudah turun' if losing else '📈 Sudah naik'}: {abs(start
 lines.append(f'📋 Sisa: {max(0.0, to_go):.1f} kg')
 lines.append(f'📊 Progress: {progress_pct}%')
 
+# --- Streak: hari berturut (sampai hari ini / kemarin) yang ada catatan makan ---
+def has_meals(day):
+    fp = os.path.join(data_dir, f'{day.isoformat()}.json')
+    if not os.path.exists(fp):
+        return False
+    try:
+        with open(fp) as fh:
+            return bool(json.load(fh).get('meals'))
+    except (json.JSONDecodeError, ValueError):
+        return False
+
+today = datetime.datetime.strptime(os.environ['TODAY'], '%Y-%m-%d').date()
+# Mulai dari hari ini kalau sudah log; kalau belum, mulai dari kemarin (streak belum putus)
+anchor = today if has_meals(today) else today - datetime.timedelta(days=1)
+streak = 0
+cur = anchor
+while has_meals(cur):
+    streak += 1
+    cur -= datetime.timedelta(days=1)
+if streak > 0:
+    flame = '🔥' * min(streak, 5)
+    note = '' if has_meals(today) else ' (hari ini belum dicatat — log biar nggak putus!)'
+    lines.append(f'{flame} Streak: {streak} hari berturut log makan{note}')
+else:
+    lines.append('💤 Streak: 0 — mulai catat makan hari ini biar jalan lagi!')
+
 if reached:
     lines.append('')
     lines.append('🎉 Target tercapai!')
@@ -594,6 +721,6 @@ PYEOF
 
     *)
         echo "Usage: body-tracker.sh <command> [args]"
-        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, daily, weekly, monthly, progress"
+        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, remove, list, daily, weekly, monthly, progress"
         ;;
 esac
