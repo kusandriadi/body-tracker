@@ -1,0 +1,9 @@
+# Tracking data is private — never commit it
+data/
+*.local.json
+profile.json
+20[0-9][0-9]-[0-1][0-9]-[0-3][0-9].json
+
+# Logs and temp
+*.log
+*.tmp
