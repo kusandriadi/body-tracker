@@ -362,6 +362,9 @@ try:
 except ValueError:
     print('❌ Nomor entri harus angka (1 = pertama, -1 = terakhir).')
     raise SystemExit(0)
+if idx == 0:
+    print('❌ Nomor mulai dari 1 (atau -1 untuk yang terakhir). 0 tidak valid.')
+    raise SystemExit(0)
 
 with open(f) as fh:
     data = json.load(fh)
