@@ -6,13 +6,13 @@
 set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
 
-DATA_DIR="${DATA_DIR:-$HOME/data/openclaw/body-tracker}"
+DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
 DATE="${1:-$(date -d '7 days ago' '+%Y-%m-%d')}"
 
 DATA_DIR="$DATA_DIR" DATE="$DATE" python3 << 'PYEOF'
 import json, os, datetime
 
-data_dir = os.environ.get('DATA_DIR', os.path.expanduser('~/data/openclaw/body-tracker'))
+data_dir = os.environ.get('DATA_DIR', os.path.expanduser('~/.body-tracker'))
 date_str = os.environ.get('DATE', datetime.date.today().isoformat())
 
 d = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()

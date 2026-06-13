@@ -22,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPORTER="$SCRIPT_DIR/weekly-report.sh"
 BIN_DIR="$HOME/bin"
-LOG_FILE="$HOME/data/openclaw/logs/body-tracker.log"
+LOG_FILE="$HOME/.body-tracker/logs/body-tracker.log"
 CATALYZER="$BIN_DIR/body-tracker-weekly.sh"
 
 NOTIFY_CMD="${BODY_TRACKER_NOTIFY_CMD:-echo}"

@@ -22,7 +22,7 @@ set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
 export TZ="Asia/Jakarta"
 
-DATA_DIR="${DATA_DIR:-$HOME/data/openclaw/body-tracker}"
+DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
 mkdir -p "$DATA_DIR"
 
 CMD="${1:-}"

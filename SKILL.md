@@ -62,8 +62,8 @@ User sends photo → image tool (glm-4.6v) → agent reasons & logs (glm-5.1) �
 ## Data Location
 
 ```
-Daily logs:   ~/data/openclaw/body-tracker/YYYY-MM-DD.json
-User profile: ~/data/openclaw/body-tracker/profile.json
+Daily logs:   ~/.body-tracker/YYYY-MM-DD.json
+User profile: ~/.body-tracker/profile.json
 ```
 
 ## Ilmu Defisit Kalori
@@ -112,7 +112,7 @@ Bandingkan rata-rata asupan vs target, cek protein, dan ingat batas laju aman.
 
 ### Step 1: Load profile
 
-Always read profile first: `cat ~/data/openclaw/body-tracker/profile.json`
+Always read profile first: `cat ~/.body-tracker/profile.json`
 
 If profile doesn't exist or user wants to update, run:
 ```bash

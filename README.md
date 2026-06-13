@@ -61,7 +61,7 @@ bash scripts/weekly-report.sh
 bash scripts/monthly-report.sh
 ```
 
-Data is stored as one JSON file per day under `~/data/openclaw/body-tracker/`, with the
+Data is stored as one JSON file per day under `~/.body-tracker/`, with the
 profile in `profile.json`. Override the location with the `DATA_DIR` environment variable.
 
 ## Weekly cron report (optional)

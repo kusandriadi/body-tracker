@@ -6,7 +6,7 @@
 set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
 
-DATA_DIR="${DATA_DIR:-$HOME/data/openclaw/body-tracker}"
+DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
 ARG="${1:-}"
 if [ -n "$ARG" ]; then
     MONTH="${ARG:0:7}"
