@@ -4,15 +4,15 @@
 #   No arg  -> the PREVIOUS completed week (last Mon–Sun).
 #   With arg-> the week (Mon–Sun) containing that date.
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 
-DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
+DATA_DIR="${DATA_DIR:-/home/kusa/data/openclaw/body-tracker}"
 DATE="${1:-$(date -d '7 days ago' '+%Y-%m-%d')}"
 
 DATA_DIR="$DATA_DIR" DATE="$DATE" python3 << 'PYEOF'
 import json, os, datetime
 
-data_dir = os.environ.get('DATA_DIR', '$HOME/.body-tracker')
+data_dir = os.environ.get('DATA_DIR', '/home/kusa/data/openclaw/body-tracker')
 date_str = os.environ.get('DATE', datetime.date.today().isoformat())
 
 d = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()

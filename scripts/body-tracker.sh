@@ -21,10 +21,10 @@
 #     corrupt a daily file.
 #   - Time is pinned to WIB (Asia/Jakarta) regardless of the server timezone.
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 export TZ="Asia/Jakarta"
 
-DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
+DATA_DIR="${DATA_DIR:-/home/kusa/data/openclaw/body-tracker}"
 mkdir -p "$DATA_DIR"
 
 CMD="${1:-}"

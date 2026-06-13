@@ -4,9 +4,9 @@
 #   No arg  -> the PREVIOUS completed month.
 #   With arg-> the month containing that date.
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 
-DATA_DIR="${DATA_DIR:-$HOME/.body-tracker}"
+DATA_DIR="${DATA_DIR:-/home/kusa/data/openclaw/body-tracker}"
 ARG="${1:-}"
 if [ -n "$ARG" ]; then
     MONTH="${ARG:0:7}"

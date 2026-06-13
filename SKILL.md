@@ -14,11 +14,28 @@ description: >
 
 Track weight, calorie intake (via food photos), and physical activity (via fitness screenshots).
 
-> **🔑 Aturan Makro (WAJIB):** Setiap kali kamu menyebut atau menjawab angka **kalori** —
-> apa pun bentuknya (catat makanan, jawab "berapa kalori X", "udah makan apa aja hari ini",
-> rekap harian/mingguan/bulanan, perkiraan satu menu) — kamu **HARUS** sekalian sebut
-> **protein, karbohidrat, dan lemak** (dalam gram). Kalori tanpa makro = jawaban belum lengkap.
+> **🔑 ATURAN MAKRO (WAJIB — JANGAN PERNAH DILANGGAR):** Setiap kali kamu menyebut atau
+> menjawab angka **kalori** — apa pun bentuknya (catat makanan, jawab "berapa kalori X",
+> "udah makan apa aja hari ini", rekap harian/mingguan/bulanan, perkiraan satu menu,
+> jawaban ngobrol biasa) — kamu **HARUS** sekalian sebut **protein, karbohidrat, dan lemak**
+> (dalam gram). Kalori tanpa makro = jawaban SALAH dan belum lengkap.
 > Format ringkas: `🔥 350 kcal | 🥩 P 10g · 🍞 K 45g · 🧈 L 15g`.
+>
+> **✅ CEK WAJIB SEBELUM KIRIM:** Sebelum mengirim balasan apa pun, scan dulu — *"Apakah aku
+> menyebut angka kkal di mana pun?"* Kalau **ya**, pastikan protein + karbo + lemak (gram) ikut
+> tersebut tepat di sebelah/di bawah angka kalori itu. Kalau ada satu saja angka kalori tanpa
+> makro di sebelahnya → **JANGAN kirim, perbaiki dulu.** Berlaku untuk SETIAP angka kalori,
+> termasuk yang muncul di tengah kalimat, di tabel, atau di rekap multi-item.
+>
+> **Contoh jawaban yang BENAR (pertanyaan lepas, tanpa command):**
+> - User: *"berapa kalori nasi padang?"*
+>   → *"Sepiring nasi padang (rendang + sayur + kuah) kira-kira `🔥 ~650 kcal | 🥩 P 22g · 🍞 K 70g · 🧈 L 30g`."*
+> - User: *"hari ini udah makan apa aja?"*
+>   → list tiap item **dengan makro masing-masing**, lalu total: `🔥 1.420 kcal | 🥩 P 68g · 🍞 K 160g · 🧈 L 52g`.
+> - User: *"kalau aku makan ayam geprek sekarang aman gak?"*
+>   → sebut estimasi menunya `🔥 ~550 kcal | 🥩 P 35g · 🍞 K 40g · 🧈 L 28g` **dulu**, baru kasih saran.
+>
+> **Contoh SALAH (jangan ditiru):** *"Nasi padang sekitar 650 kalori."* ← kalori tanpa makro = dilarang.
 
 ## Commands
 
@@ -57,7 +74,7 @@ When the user runs `/weight help`, explain in Bahasa Indonesia:
 - `/weight monthly-report` — laporan bulan lalu (tgl 1–akhir) lengkap + saran.
 - `/weight` dan `/body-tracker` itu sama (alias).
 - Bisa juga langsung kirim foto timbangan/makanan/olahraga tanpa command — otomatis terdeteksi.
-- Laporan mingguan & bulanan bisa dikirim otomatis via cron (lihat `scripts/setup-cron.sh`).
+- Laporan mingguan otomatis tiap Senin 08:00 WIB; laporan bulanan otomatis tiap tanggal 1 jam 08:00 WIB (via WhatsApp).
 
 ## Model Routing
 
@@ -73,8 +90,8 @@ User sends photo → image tool (glm-4.6v) → agent reasons & logs (glm-5.1) �
 ## Data Location
 
 ```
-Daily logs:   ~/.body-tracker/YYYY-MM-DD.json
-User profile: ~/.body-tracker/profile.json
+Daily logs:   /home/kusa/data/openclaw/body-tracker/YYYY-MM-DD.json
+User profile: /home/kusa/data/openclaw/body-tracker/profile.json
 ```
 
 ## Ilmu Defisit Kalori
@@ -123,7 +140,7 @@ Bandingkan rata-rata asupan vs target, cek protein, dan ingat batas laju aman.
 
 ### Step 1: Load profile
 
-Always read profile first: `cat ~/.body-tracker/profile.json`
+Always read profile first: `cat /home/kusa/data/openclaw/body-tracker/profile.json`
 
 If profile doesn't exist or user wants to update, run:
 ```bash
@@ -206,10 +223,10 @@ bash scripts/monthly-report.sh [YYYY-MM]       # no arg = previous completed mon
 ```
 
 Both generate a full report with calorie trends, macro averages, weight change,
-progress vs target, and personalized suggestions. They can be delivered
-automatically via cron (`scripts/setup-cron.sh`): the **weekly** report every
-Monday 08:00 and the **monthly** report on the 1st of each month 08:00 (server
-local time), each covering the period that just ended.
+progress vs target, and personalized suggestions. Sent automatically via cron
+(set up by `scripts/setup-cron.sh`): the **weekly** report every Monday 08:00 WIB
+(covers the week that just ended), and the **monthly** report on the 1st of each
+month 08:00 WIB (covers the month that just ended). Both go to WhatsApp.
 
 > Prefer these over `body-tracker.sh weekly|monthly` — those are quick
 > current-period summaries without suggestions.
@@ -237,10 +254,11 @@ Each day is stored in `YYYY-MM-DD.json`:
 ## Response Style
 
 - Bahasa Indonesia, santai
-- **Kalori selalu ditemani makro.** Lihat **Aturan Makro** di atas: tiap angka kalori
-  yang kamu sebut wajib disertai protein, karbohidrat, dan lemak (gram). Berlaku juga
-  untuk pertanyaan lepas seperti "berapa kalori nasi padang?" atau "hari ini udah makan
-  apa aja?" — jawab kalorinya **dan** rincian makronya.
+- **Kalori selalu ditemani makro — TANPA KECUALI.** Lihat **Aturan Makro** di pembuka skill:
+  tiap angka kalori yang kamu sebut wajib disertai protein, karbohidrat, dan lemak (gram).
+  Berlaku juga untuk pertanyaan lepas seperti "berapa kalori nasi padang?" atau "hari ini udah
+  makan apa aja?" — jawab kalorinya **dan** rincian makronya. **Jalankan CEK WAJIB sebelum
+  kirim:** kalau ada satu angka kkal tanpa makro di sebelahnya, perbaiki dulu sebelum mengirim.
 - When logging food: confirm what was detected + calorie estimate + **protein/karbo/lemak (g)** + **time**
 - When logging activity: confirm type + calories burned + **time**
 - When logging weight: confirm + **time**

@@ -1,76 +1,79 @@
 #!/bin/bash
-# setup-cron.sh - Set up the body-tracker report cron jobs.
-# Generates small runner scripts and installs crontab entries that deliver:
-#   - the WEEKLY report  every Monday      at 08:00 (server local time)
-#   - the MONTHLY report on the 1st of the month at 08:00 (server local time)
-#
-# Configure delivery via environment variables before running:
-#   BODY_TRACKER_NOTIFY_CMD  Command that delivers the report. It is called as:
-#                              "$NOTIFY_CMD" "<report text>" whatsapp "<recipient>"
-#                            Provide your own sender (e.g. a WhatsApp/Telegram bridge).
-#                            Default: `echo` (just writes to the cron log).
-#   BODY_TRACKER_RECIPIENT   Optional recipient handle/number passed to the notify cmd.
-#
-# Example:
-#   BODY_TRACKER_NOTIFY_CMD="$HOME/bin/send-reminder.sh" \
-#   BODY_TRACKER_RECIPIENT="+62XXXXXXXXXX" \
-#   bash scripts/setup-cron.sh
-#
-# NOTE: cron uses the server's local timezone. Make sure the server TZ matches yours,
-# or adjust the schedules below.
+# setup-cron.sh - Set up body tracker report cron jobs
+#   - Weekly  report: every Monday    08:00 WIB
+#   - Monthly report: every 1st of month 08:00 WIB (covers the month that just ended)
+# Both sent via WhatsApp to Kus.
+# NOTE: this server's timezone is Asia/Jakarta (WIB), so cron runs in WIB —
+# the schedules below are WIB local time, NOT a UTC offset.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-WEEKLY_REPORTER="$SCRIPT_DIR/weekly-report.sh"
-MONTHLY_REPORTER="$SCRIPT_DIR/monthly-report.sh"
-BIN_DIR="$HOME/bin"
-LOG_FILE="$HOME/.body-tracker/logs/body-tracker.log"
-CATALYZER_W="$BIN_DIR/body-tracker-weekly.sh"
-CATALYZER_M="$BIN_DIR/body-tracker-monthly.sh"
+REPORTER="$SCRIPT_DIR/weekly-report.sh"
+SENDER="/home/kusa/bin/send-reminder.sh"
+LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
 
-NOTIFY_CMD="${BODY_TRACKER_NOTIFY_CMD:-echo}"
-RECIPIENT="${BODY_TRACKER_RECIPIENT:-}"
+mkdir -p "$(dirname "$LOG_FILE")"
 
-mkdir -p "$BIN_DIR" "$(dirname "$LOG_FILE")"
-
-# Generate a cron runner. Values known now are injected; runtime refs are escaped (\$).
-# $1 = output path, $2 = reporter script, $3 = label (Weekly|Monthly)
-make_runner() {
-    local out="$1" reporter="$2" label="$3"
-    cat > "$out" << SENDER_EOF
+# Create the cron sender script
+CATALYZER="/home/kusa/bin/body-tracker-weekly.sh"
+cat > "$CATALYZER" << 'SENDER_EOF'
 #!/bin/bash
 set -euo pipefail
-export PATH="/usr/local/bin:/usr/bin:/bin:$HOME/bin:\$PATH"
+export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 
-LOG_FILE="$LOG_FILE"
+LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
 
-# Generate the report for the previous completed period (no date arg)
-REPORT=\$(bash "$reporter" 2>&1)
+# Generate report for the previous completed week (no date arg = last Mon–Sun)
+REPORT=$(bash /home/kusa/.openclaw/workspace/skills/body-tracker/scripts/weekly-report.sh 2>&1)
 
-if [ -n "\$REPORT" ]; then
-    "$NOTIFY_CMD" "\$REPORT" whatsapp "$RECIPIENT"
-    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] $label report sent" >> "\$LOG_FILE"
+if [ -n "$REPORT" ]; then
+    # Send via WhatsApp to Kus
+    /home/kusa/bin/send-reminder.sh "$REPORT" whatsapp +6285692509990
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 📊 Weekly report sent" >> "$LOG_FILE"
 else
-    echo "[\$(date '+%Y-%m-%d %H:%M:%S')] $label report empty" >> "\$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Weekly report empty" >> "$LOG_FILE"
 fi
 SENDER_EOF
-    chmod +x "$out"
-}
 
-make_runner "$CATALYZER_W" "$WEEKLY_REPORTER" "Weekly"
-make_runner "$CATALYZER_M" "$MONTHLY_REPORTER" "Monthly"
+chmod +x "$CATALYZER"
 
-# Install/refresh the crontab entries (server local time)
+# Create the monthly cron sender script
+CATALYZER_M="/home/kusa/bin/body-tracker-monthly.sh"
+cat > "$CATALYZER_M" << 'SENDER_EOF'
+#!/bin/bash
+set -euo pipefail
+export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
+
+LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
+
+# Generate report for the previous completed month (no arg = last month)
+REPORT=$(bash /home/kusa/.openclaw/workspace/skills/body-tracker/scripts/monthly-report.sh 2>&1)
+
+if [ -n "$REPORT" ]; then
+    /home/kusa/bin/send-reminder.sh "$REPORT" whatsapp +6285692509990
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 📊 Monthly report sent" >> "$LOG_FILE"
+else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Monthly report empty" >> "$LOG_FILE"
+fi
+SENDER_EOF
+
+chmod +x "$CATALYZER_M"
+
+# Add cron entries (WIB; server TZ = Asia/Jakarta, so cron uses WIB)
 crontab -l > /tmp/cron_body.tmp 2>/dev/null || true
+
+# Remove old entries if exist
 grep -v -e "body-tracker-weekly" -e "body-tracker-monthly" /tmp/cron_body.tmp > /tmp/cron_body.tmp2 2>/dev/null || true
-echo "# Body Tracker Weekly Report - Every Monday 08:00 (server local time)" >> /tmp/cron_body.tmp2
-echo "0 8 * * 1 $CATALYZER_W" >> /tmp/cron_body.tmp2
-echo "# Body Tracker Monthly Report - 1st of month 08:00 (server local time)" >> /tmp/cron_body.tmp2
-echo "0 8 1 * * $CATALYZER_M" >> /tmp/cron_body.tmp2
+
+echo "# Body Tracker Weekly Report - Every Monday 08:00 WIB" >> /tmp/cron_body.tmp2
+echo "0 8 * * 1 /home/kusa/bin/body-tracker-weekly.sh" >> /tmp/cron_body.tmp2
+echo "# Body Tracker Monthly Report - 1st of month 08:00 WIB" >> /tmp/cron_body.tmp2
+echo "0 8 1 * * /home/kusa/bin/body-tracker-monthly.sh" >> /tmp/cron_body.tmp2
+
 crontab /tmp/cron_body.tmp2
 rm -f /tmp/cron_body.tmp /tmp/cron_body.tmp2
 
-echo "✅ Cron jobs set up (server local time):"
-echo "   - Weekly  report: Monday 08:00       ($CATALYZER_W)"
-echo "   - Monthly report: 1st of month 08:00 ($CATALYZER_M)"
+echo "✅ Cron jobs set up:"
+echo "   - Weekly  report: Senin 08:00 WIB        ($CATALYZER)"
+echo "   - Monthly report: tgl 1 jam 08:00 WIB    ($CATALYZER_M)"
 crontab -l | grep body-tracker
