@@ -9,6 +9,7 @@
 #   body-tracker.sh remove <meal|activity> <index> [YYYY-MM-DD]   # index: 1-based; -1 = terakhir
 #   body-tracker.sh list <meal|activity> [YYYY-MM-DD]             # tampilkan entri + nomornya
 #   body-tracker.sh daily [YYYY-MM-DD]
+#   body-tracker.sh progress-day [YYYY-MM-DD]
 #   body-tracker.sh weekly [YYYY-MM-DD]
 #   body-tracker.sh monthly [YYYY-MM-DD]
 #   body-tracker.sh progress
@@ -445,6 +446,7 @@ PYEOF
             echo "📋 Tidak ada data untuk $DATE"
             exit 0
         fi
+        recalc_summary "$FILE"
         FILE="$FILE" DATE="$DATE" DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
 import json, os, sys
 date = os.environ['DATE']
@@ -519,6 +521,101 @@ if os.path.exists(pfile):
         status = 'defisit' if bal > 0 else 'surplus'
         lines.append(f"{bemoji} Estimasi neraca energi hari ini: {bal:+d} kkal ({status})")
         lines.append(f"   = TDEE {tdee} + olahraga {cal_out} − asupan {cal_in}")
+
+print('\n'.join(lines))
+PYEOF
+        ;;
+
+    progress-day)
+        DATE="${1:-$today}"
+        FILE=$(get_daily_file "$DATE")
+        if [ ! -f "$FILE" ]; then
+            echo "📋 Tidak ada data untuk $DATE"
+            exit 0
+        fi
+        recalc_summary "$FILE"
+        FILE="$FILE" DATE="$DATE" DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
+import json, os, sys
+
+date = os.environ['DATE']
+try:
+    with open(os.environ['FILE']) as f:
+        data = json.load(f)
+except (json.JSONDecodeError, ValueError) as e:
+    print(f'❌ File data {date} rusak/tidak valid JSON: {e}.')
+    sys.exit(1)
+
+pfile = os.path.join(os.environ['DATA_DIR'], 'profile.json')
+if not os.path.exists(pfile):
+    print('❌ Profile belum dibuat. Jalankan: body-tracker.sh init-profile')
+    sys.exit(0)
+
+with open(pfile) as f:
+    profile = json.load(f)
+
+s = data.get('daily_summary', {})
+cal_in = s.get('total_calories_in', 0)
+cal_out = s.get('total_calories_out', 0)
+protein = s.get('protein_g', 0)
+carbs = s.get('carbs_g', 0)
+fat = s.get('fat_g', 0)
+target_cal = profile.get('daily_calorie_target', 0)
+target_protein = profile.get('protein_target_g', 0)
+tdee = profile.get('tdee', 0)
+
+remaining_cal = target_cal - cal_in
+remaining_protein = round(target_protein - protein, 1)
+fat_kcal = fat * 9
+carb_kcal = carbs * 4
+protein_kcal = protein * 4
+known_macro_kcal = fat_kcal + carb_kcal + protein_kcal
+fat_ratio = (fat_kcal / known_macro_kcal) if known_macro_kcal else 0
+
+notes = []
+if protein >= target_protein * 0.7:
+    notes.append('Protein sudah cukup kuat sejauh ini.')
+elif protein >= target_protein * 0.4:
+    notes.append('Protein lumayan jalan, tapi masih perlu dikejar.')
+else:
+    notes.append('Protein masih tertinggal, jadi makan berikutnya sebaiknya fokus ke lauk tinggi protein.')
+
+if cal_in <= target_cal * 0.6:
+    notes.append('Kalori masih cukup aman dibanding target harian.')
+elif cal_in <= target_cal:
+    notes.append('Kalori masih on track, tinggal dijaga supaya penutup hari tidak kebablasan.')
+else:
+    notes.append('Kalori sudah lewat target, jadi sisa hari ini lebih aman pilih yang ringan dan tinggi protein.')
+
+if fat_ratio >= 0.4:
+    notes.append('Lemak sudah lumayan tinggi, jadi jaga gorengan, santan, dan kulit supaya tidak naik terlalu cepat.')
+else:
+    notes.append('Lemak masih relatif terjaga.')
+
+if carbs <= protein:
+    notes.append('Karbo masih moderat.')
+else:
+    notes.append('Karbo sudah mulai naik, jadi sisa hari ini cukupkan seperlunya saja.')
+
+notes.append('Serat belum terlacak langsung, jadi usahakan tetap tambah sayur atau buah.')
+
+lines = [f'📈 Progress Hari Ini: {date}', '']
+lines.append(f'🔥 Kalori masuk: {cal_in} kcal')
+lines.append(f'💨 Kalori keluar: {cal_out} kcal')
+lines.append(f'🥩 Protein: {protein}g / {target_protein}g')
+lines.append(f'🍞 Karbo: {carbs}g')
+lines.append(f'🧈 Lemak: {fat}g')
+lines.append(f'🎯 Target kalori: {target_cal} kcal')
+lines.append(f'📉 Sisa kalori menuju target: {remaining_cal:+d} kcal')
+lines.append(f'📌 Sisa protein menuju target: {remaining_protein:+.1f}g')
+if tdee:
+    energy_balance = int(round(tdee + cal_out - cal_in))
+    status = 'defisit' if energy_balance > 0 else 'surplus'
+    lines.append(f'⚖️ Estimasi neraca energi: {energy_balance:+d} kcal ({status})')
+
+lines.append('')
+lines.append('📝 Evaluasi:')
+for note in notes:
+    lines.append(f'- {note}')
 
 print('\n'.join(lines))
 PYEOF
@@ -724,6 +821,6 @@ PYEOF
 
     *)
         echo "Usage: body-tracker.sh <command> [args]"
-        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, remove, list, daily, weekly, monthly, progress"
+        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, remove, list, daily, progress-day, weekly, monthly, progress"
         ;;
 esac

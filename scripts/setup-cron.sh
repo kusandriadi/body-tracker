@@ -2,7 +2,7 @@
 # setup-cron.sh - Set up body tracker report cron jobs
 #   - Weekly  report: every Monday    08:00 WIB
 #   - Monthly report: every 1st of month 08:00 WIB (covers the month that just ended)
-# Both sent via WhatsApp to Kus.
+# Both sent via the configured notification channel/targets.
 # NOTE: this server's timezone is Asia/Jakarta (WIB), so cron runs in WIB —
 # the schedules below are WIB local time, NOT a UTC offset.
 set -euo pipefail
@@ -11,6 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPORTER="$SCRIPT_DIR/weekly-report.sh"
 SENDER="/home/kusa/bin/send-reminder.sh"
 LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
+ENV_FILE="$SCRIPT_DIR/../../../skill.env"
 
 mkdir -p "$(dirname "$LOG_FILE")"
 
@@ -22,16 +23,21 @@ set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 
 LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
+ENV_FILE="/home/kusa/.openclaw/workspace/skill.env"
+NOTIFY_CHANNEL="whatsapp"
+NOTIFY_TARGETS=""
+# shellcheck disable=SC1090
+[ -f "$ENV_FILE" ] && source "$ENV_FILE"
 
 # Generate report for the previous completed week (no date arg = last Mon–Sun)
 REPORT=$(bash /home/kusa/.openclaw/workspace/skills/body-tracker/scripts/weekly-report.sh 2>&1)
 
-if [ -n "$REPORT" ]; then
-    # Send via WhatsApp to Kus
-    /home/kusa/bin/send-reminder.sh "$REPORT" whatsapp +6285692509990
+if [ -n "$REPORT" ] && [ -n "${NOTIFY_TARGETS:-}" ]; then
+    # shellcheck disable=SC2086
+    /home/kusa/bin/send-reminder.sh "$REPORT" "$NOTIFY_CHANNEL" $NOTIFY_TARGETS
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] 📊 Weekly report sent" >> "$LOG_FILE"
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Weekly report empty" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Weekly report empty or no notify target configured" >> "$LOG_FILE"
 fi
 SENDER_EOF
 
@@ -45,15 +51,21 @@ set -euo pipefail
 export PATH="/usr/local/bin:/usr/bin:/bin:/home/kusa/bin:$PATH"
 
 LOG_FILE="/home/kusa/data/openclaw/logs/body-tracker.log"
+ENV_FILE="/home/kusa/.openclaw/workspace/skill.env"
+NOTIFY_CHANNEL="whatsapp"
+NOTIFY_TARGETS=""
+# shellcheck disable=SC1090
+[ -f "$ENV_FILE" ] && source "$ENV_FILE"
 
 # Generate report for the previous completed month (no arg = last month)
 REPORT=$(bash /home/kusa/.openclaw/workspace/skills/body-tracker/scripts/monthly-report.sh 2>&1)
 
-if [ -n "$REPORT" ]; then
-    /home/kusa/bin/send-reminder.sh "$REPORT" whatsapp +6285692509990
+if [ -n "$REPORT" ] && [ -n "${NOTIFY_TARGETS:-}" ]; then
+    # shellcheck disable=SC2086
+    /home/kusa/bin/send-reminder.sh "$REPORT" "$NOTIFY_CHANNEL" $NOTIFY_TARGETS
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] 📊 Monthly report sent" >> "$LOG_FILE"
 else
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Monthly report empty" >> "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ⚠️ Monthly report empty or no notify target configured" >> "$LOG_FILE"
 fi
 SENDER_EOF
 
