@@ -9,9 +9,9 @@
 #   body-tracker.sh remove <meal|activity> <index> [YYYY-MM-DD]   # index: 1-based; -1 = terakhir
 #   body-tracker.sh list <meal|activity> [YYYY-MM-DD]             # tampilkan entri + nomornya
 #   body-tracker.sh daily [YYYY-MM-DD]
-#   body-tracker.sh progress-day [YYYY-MM-DD]
-#   body-tracker.sh weekly [YYYY-MM-DD]
-#   body-tracker.sh monthly [YYYY-MM-DD]
+#   body-tracker.sh wpd|progress-day [YYYY-MM-DD]
+#   body-tracker.sh wpw|weekly [YYYY-MM-DD]
+#   body-tracker.sh wpm|monthly [YYYY-MM-DD]
 #   body-tracker.sh progress
 #
 # Notes:
@@ -526,7 +526,7 @@ print('\n'.join(lines))
 PYEOF
         ;;
 
-    progress-day)
+    wpd|progress-day)
         DATE="${1:-$today}"
         FILE=$(get_daily_file "$DATE")
         if [ ! -f "$FILE" ]; then
@@ -621,7 +621,7 @@ print('\n'.join(lines))
 PYEOF
         ;;
 
-    weekly)
+    wpw|weekly)
         DATE="${1:-$today}"
         DATE="$DATE" DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
 import json, os, datetime
@@ -678,7 +678,7 @@ print('\n'.join(lines))
 PYEOF
         ;;
 
-    monthly)
+    wpm|monthly)
         DATE="${1:-$today}"
         DATE="$DATE" DATA_DIR="$DATA_DIR" python3 << 'PYEOF'
 import json, os, datetime
@@ -821,6 +821,6 @@ PYEOF
 
     *)
         echo "Usage: body-tracker.sh <command> [args]"
-        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, remove, list, daily, progress-day, weekly, monthly, progress"
+        echo "Commands: init-profile, log-weight, log-meal, log-activity, remove-last, remove, list, daily, wpd, wpw, wpm, progress-day, weekly, monthly, progress"
         ;;
 esac

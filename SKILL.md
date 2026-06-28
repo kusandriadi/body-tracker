@@ -1,6 +1,6 @@
 ---
 name: "body-tracker"
-description: "Force vertical macro layout in body-tracker replies."
+description: "Track body metrics and nutrition; supports /weight plus /wpd, /wpw, /wpm progress commands."
 ---
 
 # Body Tracker
@@ -93,7 +93,9 @@ Fokus evaluasi:
 | `/weight remove <makan\|olahraga> <nomor>` | Hapus entri tertentu via `list` lalu `remove`. |
 | `/weight daily [tanggal]` | Rekap hari itu via `body-tracker.sh daily [YYYY-MM-DD]`. |
 | `/weight progress` | Progress menuju target + BMI + streak log makan. |
-| `/w-progress-d` | Cek progres nutrisi hari ini secara cepat via `body-tracker.sh progress-day`. Tampilkan total kalori, protein, karbo, lemak, target harian, sisa target, dan evaluasi singkat kondisi hari itu. |
+| `/wpd` | Cek progres nutrisi hari ini secara cepat via `body-tracker.sh wpd`. Tampilkan total kalori, protein, karbo, lemak, target harian, sisa target, dan evaluasi singkat kondisi hari itu. |
+| `/wpw` | Cek progres/rekap nutrisi minggu ini via `body-tracker.sh wpw`. Tampilkan total/rata-rata kalori dan makro, olahraga, berat bila ada, lalu beri evaluasi singkat minggu berjalan. |
+| `/wpm` | Cek progres/rekap nutrisi bulan ini via `body-tracker.sh wpm`. Tampilkan total/rata-rata kalori dan makro, olahraga, berat bila ada, lalu beri evaluasi singkat bulan berjalan. |
 | `/weight weekly-report` | Jalankan `bash scripts/weekly-report.sh`. |
 | `/weight monthly-report` | Jalankan `bash scripts/monthly-report.sh`. |
 | `/weight help` | Jelaskan command. |
@@ -113,7 +115,9 @@ Saat user menjalankan `/weight help`, jelaskan dalam Bahasa Indonesia:
 - `/weight remove <makan|olahraga> <nomor>` — hapus entri tertentu.
 - `/weight daily` — rekap hari ini.
 - `/weight progress` — progress menuju target + BMI + streak.
-- `/w-progress-d` — cek progres nutrisi hari ini secara cepat.
+- `/wpd` — cek progres nutrisi hari ini secara cepat.
+- `/wpw` — cek progres nutrisi minggu ini.
+- `/wpm` — cek progres nutrisi bulan ini.
 - `/weight weekly-report` — laporan minggu lalu.
 - `/weight monthly-report` — laporan bulan lalu.
 - `/weight` dan `/body-tracker` itu sama.
@@ -185,9 +189,9 @@ bash scripts/body-tracker.sh log-weight <weight_kg>
 
 ```bash
 bash scripts/body-tracker.sh daily [YYYY-MM-DD]
-bash scripts/body-tracker.sh progress-day [YYYY-MM-DD]
-bash scripts/body-tracker.sh weekly [YYYY-MM-DD]
-bash scripts/body-tracker.sh monthly [YYYY-MM-DD]
+bash scripts/body-tracker.sh wpd [YYYY-MM-DD]
+bash scripts/body-tracker.sh wpw [YYYY-MM-DD]
+bash scripts/body-tracker.sh wpm [YYYY-MM-DD]
 bash scripts/body-tracker.sh progress
 ```
 

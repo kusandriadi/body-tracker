@@ -52,9 +52,9 @@ bash scripts/body-tracker.sh remove-last meal
 
 # Recaps
 bash scripts/body-tracker.sh daily
-bash scripts/body-tracker.sh progress-day
-bash scripts/body-tracker.sh weekly
-bash scripts/body-tracker.sh monthly
+bash scripts/body-tracker.sh wpd
+bash scripts/body-tracker.sh wpw
+bash scripts/body-tracker.sh wpm
 bash scripts/body-tracker.sh progress
 
 # Richer weekly/monthly reports with suggestions
